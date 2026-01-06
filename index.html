@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parts Search App</title>
+<style>
+body { font-family: Arial, sans-serif; padding:16px; background:#f8f8f8; }
+#searchBox { width:100%; padding:18px; font-size:20px; border-radius:14px; border:2px solid orange; margin-bottom:16px; box-shadow:0 2px 6px rgba(0,0,0,0.2); }
+.card { border-radius:14px; background:white; padding:16px; margin:10px 0; box-shadow:0 3px 8px rgba(0,0,0,0.15); border-left:6px solid; transition: all 0.25s ease; }
+.card:hover { transform: scale(1.01); }
+.status { font-weight:bold; }
+.green { color:green; }
+.red { color:red; }
+a.mapLink { color:orange; font-weight:bold; text-decoration:none; display:block; margin-top:8px; }
+#disclaimer { font-size:14px; color:#555; margin-top:20px; }
+</style>
+</head>
+<body>
+
+<input type="text" id="searchBox" placeholder="Search by Vehicle…">
+<div id="results"></div>
+<div id="disclaimer">
+⚠️ The information in this app was put together by the equipment supervisors to help members find spare tires faster and respond more efficiently. Accuracy is not guaranteed.
+</div>
+
+<script>
+const sheetID = "1TxyEHpELPx4VVD4Bi5RIBRHMH0AGN_nH";
+const partsURL = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:csv&sheet=Parts`;
+const vehiclesURL = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:csv&sheet=Vehicles`;
+
+let partsData = [];
+let vehiclesData = [];
+
+function csvToArray(csv){ return csv.trim().split("\n").map(r=>r.split(",")); }
+
+fetch(partsURL).then(r=>r.text()).then(t=>partsData = csvToArray(t).slice(1));
+fetch(vehiclesURL).then(r=>r.text()).then(t=>vehiclesData = csvToArray(t).slice(1));
+
+function searchParts(){
+  const term = document.getElementById("searchBox").value.toLowerCase();
+  const resultsDiv = document.getElementById("results");
+  resultsDiv.innerHTML = "";
+  if(!partsData.length || !vehiclesData.length) return;
+
+  let matchedPartIDs = [];
+  vehiclesData.forEach(v=>{
+    const vehicleName = v[0].toLowerCase();
+    const compatibleParts = v[1].toLowerCase();
+    if(vehicleName.includes(term)){
+      matchedPartIDs = matchedPartIDs.concat(compatibleParts.split(",").map(s=>s.trim()));
+    }
+  });
+
+  partsData.forEach(p=>{
+    const partID = p[0].trim();
+    if(matchedPartIDs.includes(partID.toLowerCase())){
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.borderLeftColor = (p[3].toLowerCase()==="in service")?"green":"red";
+      card.innerHTML = `
+        <strong style="font-size:18px;">Part ID:</strong> ${p[0]}<br>
+        <strong>Size:</strong> ${p[1]}<br>
+        <strong>Storage:</strong> ${p[2]}<br>
+        <strong>Status:</strong> <span class="status ${p[3].toLowerCase()==='in service'?'green':'red'}">${p[3]}</span><br>
+        <strong>Notes:</strong> ${p[4]}<br>
+        ${p[5] ? `<a class="mapLink" href="${p[5]}" target="_blank">View Map</a>` : ""}
+      `;
+      resultsDiv.appendChild(card);
+      setTimeout(()=>{ card.style.opacity=1; card.style.transform="translateY(0)"; },50);
+    }
+  });
+}
+
+document.getElementById("searchBox").addEventListener("input", searchParts);
+</script>
+
+</body>
+</html>
